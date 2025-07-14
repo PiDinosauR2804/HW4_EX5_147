@@ -10,6 +10,7 @@ Soumya Chatterjee <soumyac@stanford.edu>
 
 import math
 import logging
+import copy
 
 import torch
 import torch.nn as nn
@@ -35,12 +36,16 @@ def precompute_rotary_emb(dim, max_positions):
     the embedding.
     """
 
-    rope_cache = None
+    rope_cache = []
     # TODO: [part g]
     ### YOUR CODE HERE ###
-    pass
+    for p in range(max_positions):
+        theta_i = [1 / (10000 ** (2 * (i - 1) / dim)) for i in range(1, dim // 2 + 1)]
+        temp = [[math.cos(p * theta), math.sin(p * theta)] for theta in theta_i]
+        rope_cache.append(temp)
+        
     ### END YOUR CODE ###
-    return rope_cache
+    return torch.tensor(rope_cache, dtype=torch.get_default_dtype())
 
 
 def apply_rotary_emb(x, rope_cache):
@@ -57,10 +62,38 @@ def apply_rotary_emb(x, rope_cache):
     # truncate the precomputed values to match the length of the sequence.
 
     rotated_x = None
-    ### YOUR CODE HERE ###
-    pass
+    ### YOUR CODE HERE ###            
+    batch_size, seq_len, dim = x.shape
+    assert dim % 2 == 0, "Embedding dimension must be even for RoPE"
+
+    half_dim = dim // 2
+
+    # 2. Trích cos và sin từ rope_cache
+    rope = rope_cache[:seq_len]                       # (seq_len, half_dim, 2)
+    cos = rope[..., 0]                                # (seq_len, half_dim)
+    sin = rope[..., 1]                                # (seq_len, half_dim)
+
+    # 3. Tách x thành phần thực và ảo để tạo số phức
+    x_real = x[:, :, 0::2]                            # (B, S, half_dim)
+    x_imag = x[:, :, 1::2]                            # (B, S, half_dim)
+    x_complex = torch.complex(x_real, x_imag)         # (B, S, half_dim)
+
+    # 4. Tạo số phức từ cos + i sin
+    freq = torch.complex(cos, sin)                    # (S, half_dim)
+    freq = freq.unsqueeze(0)                          # (1, S, half_dim) để broadcast với batch
+
+    # 5. Nhân từng phần tử (Hadamard product)
+    x_rotated = x_complex * freq                      # (B, S, half_dim)
+
+    # 6. Chuyển lại tensor thực: (real, imag)
+    x_rot_realimag = torch.view_as_real(x_rotated)    # (B, S, half_dim, 2)
+
+    x_out = torch.empty((batch_size, seq_len, dim), dtype=x.dtype, device=x.device)
+    x_out[:, :, 0::2] = x_rot_realimag[..., 0]
+    x_out[:, :, 1::2] = x_rot_realimag[..., 1]
+
     ### END YOUR CODE ###
-    return rotated_x
+    return x_out
 
 class CausalSelfAttention(nn.Module):
     """
@@ -86,7 +119,7 @@ class CausalSelfAttention(nn.Module):
             # Hint: The maximum sequence length is given by config.block_size.
             rope_cache = None
             ### YOUR CODE HERE ###
-            pass
+            rope_cache = precompute_rotary_emb(config.n_embd, config.block_size)
             ### END YOUR CODE ###
 
             self.register_buffer("rope_cache", rope_cache)
@@ -112,7 +145,17 @@ class CausalSelfAttention(nn.Module):
         if self.rope:
             # TODO: [part g] Apply RoPE to the query and key.
             ### YOUR CODE HERE ###
-            pass
+            B_nh = B * self.n_head
+            hs = C // self.n_head
+
+            q = q.reshape(B_nh, T, hs)
+            k = k.reshape(B_nh, T, hs)
+
+            q = apply_rotary_emb(q, self.rope_cache)
+            k = apply_rotary_emb(k, self.rope_cache)
+
+            q = q.reshape(B, self.n_head, T, hs)
+            k = k.reshape(B, self.n_head, T, hs)
             ### END YOUR CODE ###
 
         # causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)

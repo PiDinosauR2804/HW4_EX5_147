@@ -101,7 +101,43 @@ class CharCorruptionDataset(Dataset):
     def __getitem__(self, idx):
         # TODO [part e]: see spec above
         ### YOUR CODE HERE ###
-        pass
+        document = self.data[idx]
+
+        min_len = 4
+        max_len = int(self.block_size * 7 / 8)
+        if len(document) < min_len:
+            document = document + ' ' * (min_len - len(document))  # pad if too short
+        max_len = min(max_len, len(document))
+        trunc_len = random.randint(min_len, max_len)
+        document = document[:trunc_len]
+
+        if len(document) < 2:
+            masked_content = document
+            prefix = ''
+            suffix = ''
+        else:
+            mask_len = random.randint(1, max(1, len(document)/2))
+            mask_start = random.randint(0, len(document) - mask_len)
+            prefix = document[:mask_start]
+            masked_content = document[mask_start:mask_start + mask_len]
+            suffix = document[mask_start + mask_len:]
+
+        masked_string = (
+            prefix + self.MASK_CHAR + suffix + self.MASK_CHAR + masked_content
+        )
+        num_pads = self.block_size + 1 - len(masked_string)
+        if num_pads > 0:
+            masked_string += self.PAD_CHAR * num_pads
+        else:
+            masked_string = masked_string[:self.block_size + 1]
+
+        input_str = masked_string[:-1]
+        target_str = masked_string[1:]
+
+        x = torch.tensor([self.stoi[c] for c in input_str], dtype=torch.long)
+        y = torch.tensor([self.stoi[c] for c in target_str], dtype=torch.long)
+
+        return x, y
         ### END YOUR CODE ###
 
 
@@ -150,7 +186,7 @@ class NameDataset(Dataset):
 
 if __name__ == '__main__':
     argp = argparse.ArgumentParser()
-    argp.add_argument('--dataset_type', help="Type of dataset to sample from."
+    argp.add_argument('dataset_type', help="Type of dataset to sample from."
             "Options: namedata, charcorruption.",
             default="namedata",
             choices=["namedata", "charcorruption"])

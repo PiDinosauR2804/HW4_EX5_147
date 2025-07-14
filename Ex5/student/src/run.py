@@ -13,9 +13,9 @@ from torch.utils.tensorboard import SummaryWriter
 random.seed(0)
 
 argp = argparse.ArgumentParser()
-argp.add_argument('--function', help="Choose pretrain, finetune, or evaluate", default="finetune")
-argp.add_argument('--variant', help="Choose vanilla or rope", default="vanilla")
-argp.add_argument('--pretrain_corpus_path', default="birth_places_train.tsv")
+argp.add_argument('function', help="Choose pretrain, finetune, or evaluate", default="finetune")
+argp.add_argument('variant', help="Choose vanilla or rope", default="vanilla")
+argp.add_argument('pretrain_corpus_path', default="wiki.txt")
 argp.add_argument('--reading_params_path',default=None)
 argp.add_argument('--writing_params_path',default="trained_params/")
 argp.add_argument('--finetune_corpus_path', default="birth_places_train.tsv")
@@ -66,13 +66,28 @@ model = None
 if args.variant == 'vanilla':
     # TODO: [part c] Make some model here
     ### YOUR CODE HERE ###
+    mconf = models.GPTConfig(
+        pretrain_dataset.vocab_size,
+        pretrain_dataset.block_size,
+        n_layer=4,
+        n_head=8,
+        n_embd=256)
     model = models.GPT(mconf)
+    model = model.to(device)
     ### END YOUR CODE ###
 elif args.variant == 'rope':
     # TODO: [part g] Make some other model here
     # set mconf.rope parameter
     ### YOUR CODE HERE ###
-    pass
+    mconf = models.GPTConfig(
+        pretrain_dataset.vocab_size,
+        pretrain_dataset.block_size,
+        n_layer=4,
+        n_head=8,
+        n_embd=256,
+        rope=True)
+    model = models.GPT(mconf)
+    model = model.to(device)
     ### END YOUR CODE ###
 else:
     raise ValueError("Unknown model variant")
@@ -100,9 +115,17 @@ if args.function == 'pretrain':
     # final_tokens=650*len(pretrain_dataset)*block_size
     # num_workers=4
     # writer=writer
-
     ### YOUR CODE HERE ###
-    pass
+    block_size = 128
+
+    tconf = trainer.TrainerConfig(max_epochs=650, batch_size=128, learning_rate=args.pretrain_lr,
+                      lr_decay=True, warmup_tokens=512*20, final_tokens=650*len(pretrain_dataset)*block_size,
+                      num_workers=4, writer=writer)
+    trainer = trainer.Trainer(model, pretrain_dataset, None, tconf)
+    trainer.train()
+    
+    torch.save(model.state_dict(), args.writing_params_path)
+
     ### END YOUR CODE ###
 elif args.function == 'finetune':
     assert args.writing_params_path is not None
@@ -148,16 +171,25 @@ elif args.function == 'finetune':
         model.load_state_dict(checkpoint)
         
     block_size = 128
-    ft_text = open(args.finetune_corpus_path, encoding='utf-8').read()
-    finetune_dataset = dataset.CharCorruptionDataset(ft_text, block_size)
+
     
-    tconf = trainer.TrainerConfig(max_epochs=2, batch_size=512, learning_rate=6e-4,
-                      lr_decay=True, warmup_tokens=512*20, final_tokens=2*len(finetune_dataset)*block_size,
-                      num_workers=4)
+    corruption_dataset = dataset.CharCorruptionDataset(
+        open('wiki.txt', encoding='utf-8').read(), block_size)
+    # Make the name dataset
+    finetune_dataset = dataset.NameDataset(corruption_dataset,
+        open(args.finetune_corpus_path, encoding='utf-8').read())
+    
+    # d
+    tconf = trainer.TrainerConfig(max_epochs=75, batch_size=256, learning_rate=args.finetune_lr,
+                      lr_decay=True, warmup_tokens=512*20, final_tokens=200*len(finetune_dataset)*block_size,
+                      num_workers=4, writer=writer)
+    tconf = trainer.TrainerConfig(max_epochs=10, batch_size=256, learning_rate=args.finetune_lr,
+                      lr_decay=True, warmup_tokens=512*20, final_tokens=200*len(finetune_dataset)*block_size,
+                      num_workers=4, writer=writer)
     trainer = trainer.Trainer(model, finetune_dataset, None, tconf)
     trainer.train()
     
-    model.save_pretrained(args.writing_params_path)
+    torch.save(model.state_dict(), args.writing_params_path)
     ### END YOUR CODE ###
 elif args.function == 'evaluate':
     assert args.outputs_path is not None
