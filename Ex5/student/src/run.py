@@ -29,7 +29,8 @@ args = argp.parse_args()
 
 device = 'cpu'
 if torch.cuda.is_available():
-    device = torch.cuda.current_device()
+    # device = torch.cuda.current_device()
+    device = torch.device(f"cuda:{torch.cuda.current_device()}" if torch.cuda.is_available() else "cpu")
 elif torch.backends.mps.is_available() and args.variant == 'vanilla':
     device = 'mps'
 

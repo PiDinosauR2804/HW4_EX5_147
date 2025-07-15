@@ -48,7 +48,8 @@ class Trainer:
         # take over whatever gpus are on the system
         self.device = 'cpu'
         if torch.cuda.is_available():
-            self.device = torch.cuda.current_device()
+            # self.device = torch.cuda.current_device()
+            self.device = torch.device(f"cuda:{torch.cuda.current_device()}" if torch.cuda.is_available() else "cpu")
             self.model = torch.nn.DataParallel(self.model).to(self.device)
         elif torch.backends.mps.is_available() and not self.model.rope:
             self.device = 'mps'
