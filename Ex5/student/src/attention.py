@@ -80,7 +80,7 @@ def apply_rotary_emb(x, rope_cache):
 
     # 4. Tạo số phức từ cos + i sin
     freq = torch.complex(cos, sin)                    # (S, half_dim)
-    freq = freq.unsqueeze(0)                          # (1, S, half_dim) để broadcast với batch
+    # freq = freq.unsqueeze(0)                          # (1, S, half_dim) để broadcast với batch
 
     # 5. Nhân từng phần tử (Hadamard product)
     x_rotated = x_complex * freq                      # (B, S, half_dim)
@@ -119,7 +119,7 @@ class CausalSelfAttention(nn.Module):
             # Hint: The maximum sequence length is given by config.block_size.
             rope_cache = None
             ### YOUR CODE HERE ###
-            rope_cache = precompute_rotary_emb(config.n_embd, config.block_size)
+            rope_cache = precompute_rotary_emb(config.n_embd//config.n_head, config.block_size)
             ### END YOUR CODE ###
 
             self.register_buffer("rope_cache", rope_cache)
@@ -147,7 +147,7 @@ class CausalSelfAttention(nn.Module):
             ### YOUR CODE HERE ###
             B_nh = B * self.n_head
             hs = C // self.n_head
-
+            
             q = q.reshape(B_nh, T, hs)
             k = k.reshape(B_nh, T, hs)
 
