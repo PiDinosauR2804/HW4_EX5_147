@@ -10,7 +10,7 @@ import torch
 from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
 
-random.seed(0)
+random.seed(1)
 
 argp = argparse.ArgumentParser()
 argp.add_argument('function', help="Choose pretrain, finetune, or evaluate", default="finetune")
@@ -184,7 +184,7 @@ elif args.function == 'finetune':
     # tconf = trainer.TrainerConfig(max_epochs=75, batch_size=256, learning_rate=args.finetune_lr,
     #                   lr_decay=True, warmup_tokens=512*20, final_tokens=200*len(finetune_dataset)*block_size,
     #                   num_workers=4, writer=writer)
-    tconf = trainer.TrainerConfig(max_epochs=20, batch_size=256, learning_rate=args.finetune_lr,
+    tconf = trainer.TrainerConfig(max_epochs=10, batch_size=256, learning_rate=args.finetune_lr,
                       lr_decay=True, warmup_tokens=512*20, final_tokens=200*len(finetune_dataset)*block_size,
                       num_workers=4, writer=writer)
     trainer = trainer.Trainer(model, finetune_dataset, None, tconf)
