@@ -55,11 +55,33 @@ class C3_layer(nn.Module):
                         [1, 2, 4, 5],
                         [0, 2, 3, 5]] # filter with 4 subset of input channels
         # put implementation here
-        pass
+        self.conv_3 = nn.ModuleList([
+            nn.Conv2d(in_channels=len(indices), out_channels=1, kernel_size=5)
+            for indices in self.ch_in_3
+        ])
+        self.conv_4 = nn.ModuleList([
+            nn.Conv2d(in_channels=len(indices), out_channels=1, kernel_size=5)
+            for indices in self.ch_in_4
+        ])
+        self.conv_all = nn.Conv2d(in_channels=6, out_channels=1, kernel_size=5)
 
     def forward(self, x):
-        # put implementation here
-        pass
+        outputs = []
+
+        for conv, idxs in zip(self.conv_3, self.ch_in_3):
+            subset = x[:, idxs, :, :]  # (B, len(idxs), 14, 14)
+            out = conv(subset)         # (B, 1, 10, 10)
+            outputs.append(out)
+
+        for conv, idxs in zip(self.conv_4, self.ch_in_4):
+            subset = x[:, idxs, :, :]
+            out = conv(subset)
+            outputs.append(out)
+
+        
+        outputs.append(self.conv_all(x))
+
+        return torch.cat(outputs, dim=1) 
     
 class LeNet(nn.Module) :
     def __init__(self) :
@@ -74,8 +96,8 @@ class LeNet(nn.Module) :
                 nn.Tanh()
                 )
         self.C3_layer = nn.Sequential(
-                #C3_layer_full(),
-                C3_layer(),
+                C3_layer_full(),
+                # C3_layer(),
                 nn.Tanh()
                 )
         self.P4_layer = nn.Sequential(

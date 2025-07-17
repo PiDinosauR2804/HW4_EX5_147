@@ -83,9 +83,14 @@ for ell in reversed(range(L)):
     S = sigma_prime if ell<L-1 else lambda x: torch.ones(x.shape)
     A, b, y = A_list[ell], b_list[ell], y_list[ell]
 
-    db = ...    # dloss/db_ell  
-    dA = ...    # dloss/dA_ell
-    dy = ...    # dloss/dy_{ell-1}
+    y_input = A @ y_list[ell] + b      
+    act_grad = S(y_input)                  
+    
+    dy_input = dy * act_grad                                   
+
+    db = torch.sum(dy_input, dim=1, keepdim=True)    # dloss/db_ell  
+    dA = dy_input @ y_list[ell].T    # dloss/dA_ell
+    dy = A.T @ dy_input      # dloss/dy_{ell-1}
 
     dA_list.insert(0, dA)
     db_list.insert(0, db)

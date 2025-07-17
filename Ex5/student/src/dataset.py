@@ -116,7 +116,7 @@ class CharCorruptionDataset(Dataset):
             prefix = ''
             suffix = ''
         else:
-            mask_len = random.randint(1, max(1, len(document)//2))
+            mask_len = random.randint(1, max(1, len(document)))
             mask_start = random.randint(0, len(document) - mask_len)
             prefix = document[:mask_start]
             masked_content = document[mask_start:mask_start + mask_len]

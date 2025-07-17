@@ -13,19 +13,16 @@ def main():
 
     # Compute accuracy in the range [0.0, 100.0]
     ### YOUR CODE HERE ###
-    index_london = []
+    # index_london = []
     london_correct = 0
+    all = 0
     df = pd.read_csv('birth_dev.tsv', sep='\t', header=None, names=['question', 'place'])
     for idx, row in df.iterrows():
         if row['place'] == 'London':
-            index_london.append(idx)
-    
-    with open("vanilla.nopretrain.dev.predictions", "w", encoding="utf-8") as f:
-        preds = f.readlines(f)
-    for idx in index_london:
-        if preds[idx] == 'London':
             london_correct += 1
-    accuracy = london_correct/len(index_london)
+        all += 1
+
+    accuracy = london_correct/all
     ### END YOUR CODE ###
 
     return accuracy
@@ -33,4 +30,4 @@ def main():
 if __name__ == '__main__':
     accuracy = main()
     with open("london_baseline_accuracy.txt", "w", encoding="utf-8") as f:
-        f.write(f"{accuracy}\n")
+        f.write(f"{accuracy*100}%\n")

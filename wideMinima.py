@@ -20,13 +20,6 @@ def run(start, lr, loop):
         values.append([x, f(x)])
     return values
 
-
-
-# x = np.linspace(-5,20,100)
-# plt.plot(x,f(x), 'k')
-# plt.plot()
-# plt.show()
-
 start = random.randrange(-5, 20)
 lr = 4
 loop = 200
@@ -39,10 +32,8 @@ y_vals = points[:, 1]
 x = np.linspace(-5, 20, 100)
 plt.plot(x, f(x), 'k', label='f(x)')
 
-# Vẽ các bước descent
 plt.plot(x_vals, y_vals, 'ro-', markersize=4, label='GD Steps')
 
-# Chú thích điểm đầu và cuối
 plt.annotate("Start", xy=(x_vals[0], y_vals[0]), xytext=(x_vals[0]+0.5, y_vals[0]+10),
              arrowprops=dict(facecolor='green', arrowstyle='->'), fontsize=10)
 

@@ -14,6 +14,7 @@ lr = 0.001
 batch_size = 100
 epochs = 10
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# print(device)
 
 '''
 Step 1:
@@ -128,8 +129,19 @@ Step 5: Calculate standard deviation by using validation set
 '''
 validation_loader = torch.utils.data.DataLoader(dataset=validation_dataset, batch_size=batch_size)
 
+validation_scores = []
 for images, _ in validation_loader:
-    pass
+    images = images.to(device)
+    z = enc(images)
+    reconstructed = dec(z)
+    
+    scores = torch.mean((images - reconstructed) ** 2, dim=[1,2,3])  # (batch_size,)
+    validation_scores.append(scores.detach().cpu())
+    
+validation_scores = torch.cat(validation_scores)
+mean = validation_scores.mean().item()
+std = validation_scores.std().item()
+ 
 
 threshold = mean + 3 * std
 print("threshold: ", threshold)
@@ -138,16 +150,47 @@ print("threshold: ", threshold)
 '''
 Step 6: Anomaly detection (mnist)
 '''
+
+false_positives = 0
+total = 0
+
 test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=batch_size)
 
 for images, _ in test_loader:
-    pass
+    images = images.to(device)
+    z = enc(images)
+    reconstructed = dec(z)
+    
+    scores = torch.mean((images - reconstructed) ** 2, dim=[1, 2, 3])  # shape: (batch_size,)
+    
+    false_positives += torch.sum(scores > threshold).item()
+    total += scores.size(0)
+
+type1_error_rate = false_positives / total
+print(f"Type I Error Rate: {100*type1_error_rate:.4f}%")
 
 
 '''
 Step 7: Anomaly detection (kmnist)
 '''
+
+false_negatives = 0
+total = 0
+
 anomaly_loader = torch.utils.data.DataLoader(dataset=anomaly_dataset, batch_size=batch_size)
 
 for images, _ in anomaly_loader:
-    pass
+    images = images.to(device)
+    z = enc(images)
+    reconstructed = dec(z)
+    
+    # Score function
+    scores = torch.mean((images - reconstructed) ** 2, dim=[1, 2, 3])
+    
+    # Đếm số ảnh có score thấp hơn threshold => bị coi là không anomaly
+    false_negatives += torch.sum(scores <= threshold).item()
+    total += scores.size(0)
+
+type2_error_rate = false_negatives / total
+print(f"Type II Error Rate: {100*type2_error_rate:.4f}%")
+
